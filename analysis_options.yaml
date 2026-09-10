@@ -1,0 +1,4 @@
+# SDK analyzer defaults; no external lint package required for the skeleton.
+analyzer:
+  exclude:
+    - build/**
