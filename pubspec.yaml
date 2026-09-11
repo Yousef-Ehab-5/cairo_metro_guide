@@ -9,8 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  geolocator: ^14.0.3
+  http: ^1.6.0
+  shared_preferences: ^2.5.5
+  url_launcher: ^6.3.2
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
   flutter_test:
     sdk: flutter
 

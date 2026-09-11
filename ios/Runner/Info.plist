@@ -27,6 +27,8 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
+	<key>NSLocationWhenInUseUsageDescription</key>
+    <string>Find metro stations near your current location.</string>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>

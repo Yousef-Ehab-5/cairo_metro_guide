@@ -1,0 +1,11 @@
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/metro_logo.png"
+  remove_alpha_ios: true
+
+  web:
+    generate: true
+    image_path: "assets/images/metro_logo.png"
+    background_color: "#FFFFFF"
+    theme_color: "#13795B"
