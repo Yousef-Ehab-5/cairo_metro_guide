@@ -115,7 +115,7 @@ class MetroHome extends StatefulWidget {
 }
 
 class _MetroHomeState extends State<MetroHome> {
-  final storage = MetroStorage();
+  final storage = AppStorage();
 
   String start = 'helwan';
   String destination = 'ain_helwan';

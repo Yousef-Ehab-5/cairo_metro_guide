@@ -1,41 +1,89 @@
-import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
 
-class MetroStorage {
-  static const _key = 'cairo_metro_full_app_v1';
+class AppStorage {
+  // نمط Singleton لضمان نسخة واحدة في كل التطبيق
+  static final AppStorage _instance = AppStorage._internal();
+  factory AppStorage() => _instance;
+  AppStorage._internal();
 
-  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+  static SharedPreferences? _preferences;
 
-  Future<void> _pending = Future<void>.value();
+  // مفاتيح التخزين الثابتة لتجنب الأخطاء الإملائية
+  static const String _keyToken = 'auth_token';
+  static const String _keyIsLoggedIn = 'is_logged_in';
+  static const String _keyUserId = 'user_id';
+  static const String _keyUserName = 'user_name';
+  static const String _keyThemeMode = 'is_dark_mode';
 
-  Future<Map<String, dynamic>> load() async {
-    final raw = await _preferences.getString(_key);
-    if (raw == null) return {};
-
-    final decoded = jsonDecode(raw);
-    if (decoded is! Map) {
-      throw const FormatException('Saved app data has an invalid format.');
-    }
-
-    return Map<String, dynamic>.from(decoded);
+  /// دالة التهيئة المسبقة (يتم استدعاؤها في main.dart)
+  static Future<void> init() async {
+    _preferences = await SharedPreferences.getInstance();
   }
 
-  Future<void> save(Map<String, dynamic> data) {
-    // Encode immediately so later UI changes cannot mutate this write.
-    final encoded = jsonEncode(data);
+  //  دوال عامة (Generic Helpers) 
 
-    // Queue writes to avoid an older selection overwriting a newer one.
-    final next = _pending.then(
-          (_) => _preferences.setString(_key, encoded),
-    );
-
-    // Keep future writes working even if one write fails.
-    _pending = next.then<void>(
-          (_) {},
-      onError: (Object error, StackTrace stack) {},
-    );
-
-    return next;
+  static Future<bool> setString(String key, String value) async {
+    return await _preferences?.setString(key, value) ?? false;
   }
+
+  static String? getString(String key) {
+    return _preferences?.getString(key);
+  }
+
+  static Future<bool> setBool(String key, bool value) async {
+    return await _preferences?.setBool(key, value) ?? false;
+  }
+
+  static bool getBool(String key, {bool defaultValue = false}) {
+    return _preferences?.getBool(key) ?? defaultValue;
+  }
+
+  static Future<bool> setInt(String key, int value) async {
+    return await _preferences?.setInt(key, value) ?? false;
+  }
+
+  static int? getInt(String key) {
+    return _preferences?.getInt(key);
+  }
+
+  //  دوال مخصصة للمصادقة وتطبيق المترو 
+
+  /// حفظ بيانات الجلسة عند نجاح تسجيل الدخول
+  static Future<void> saveUserSession({
+    required String token,
+    String? userId,
+    String? userName,
+  }) async {
+    await _preferences?.setString(_keyToken, token);
+    await _preferences?.setBool(_keyIsLoggedIn, true);
+    if (userId != null) await _preferences?.setString(_keyUserId, userId);
+    if (userName != null) await _preferences?.setString(_keyUserName, userName);
+  }
+
+  /// جلب الـ Token الحالي
+  static String? getToken() {
+    return _preferences?.getString(_keyToken);
+  }
+
+  /// معرفة هل المستخدم مسجل دخول حالياً
+  static bool isLoggedIn() {
+    return _preferences?.getBool(_keyIsLoggedIn) ?? false;
+  }
+
+  /// تسجيل الخروج ومسح بيانات الجلسة فقط
+  static Future<void> clearSession() async {
+    await _preferences?.remove(_keyToken);
+    await _preferences?.remove(_keyUserId);
+    await _preferences?.remove(_keyUserName);
+    await _preferences?.setBool(_keyIsLoggedIn, false);
+  }
+
+  /// مسح كل شيء تماماً من ذاكرة الهاتف
+  static Future<bool> clearAll() async {
+    return await _preferences?.clear() ?? false;
+  }
+
+  Future load() async {}
+
+  Future<void> save(Map<String, Object> map) async {}
 }
