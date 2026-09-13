@@ -43,7 +43,7 @@ class OnlineMetro {
         permission == LocationPermission.deniedForever) {
       throw Exception(
         'Location permission was denied. '
-            'Allow location in your browser or device settings.',
+        'Allow location in your browser or device settings.',
       );
     }
 
@@ -58,8 +58,7 @@ class OnlineMetro {
       name: 'Your location',
       latitude: position.latitude,
       longitude: position.longitude,
-      description:
-      'Reported accuracy: ${position.accuracy.round()} meters',
+      description: 'Reported accuracy: ${position.accuracy.round()} meters',
     );
   }
 
@@ -78,13 +77,13 @@ class OnlineMetro {
     });
 
     final response = await http.get(uri).timeout(
-      const Duration(seconds: 25),
-    );
+          const Duration(seconds: 25),
+        );
 
     if (response.statusCode != 200) {
       throw Exception(
         'Place search is unavailable (${response.statusCode}). '
-            'Please try again later.',
+        'Please try again later.',
       );
     }
 
@@ -138,13 +137,13 @@ out center tags;
     );
 
     final response = await http.get(uri).timeout(
-      const Duration(seconds: 45),
-    );
+          const Duration(seconds: 45),
+        );
 
     if (response.statusCode != 200) {
       throw Exception(
         'Station location service is unavailable '
-            '(${response.statusCode}). Please try again later.',
+        '(${response.statusCode}). Please try again later.',
       );
     }
 

@@ -1,4 +1,3 @@
-
 String stationId(String name) {
   return name
       .toLowerCase()
@@ -242,9 +241,15 @@ class MetroNetwork {
   String name(String id) => stations[id]?.name ?? id;
 
   List<MetroStation> get sortedStations {
-    return stations.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    return stations.values.toList()..sort((a, b) => a.name.compareTo(b.name));
   }
 }
+
+// Monorail connections supplied for this project.
+// Connection labels do not establish current service availability.
+const Map<String, String> monorailConnections = {
+  'stadium': 'East of Nile Monorail',
+  'wadi_el_nile': 'West of Nile Monorail',
+};
 
 final metroNetwork = MetroNetwork();

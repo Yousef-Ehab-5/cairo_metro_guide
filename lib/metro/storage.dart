@@ -27,12 +27,12 @@ class MetroStorage {
 
     // Queue writes to avoid an older selection overwriting a newer one.
     final next = _pending.then(
-          (_) => _preferences.setString(_key, encoded),
+      (_) => _preferences.setString(_key, encoded),
     );
 
     // Keep future writes working even if one write fails.
     _pending = next.then<void>(
-          (_) {},
+      (_) {},
       onError: (Object error, StackTrace stack) {},
     );
 

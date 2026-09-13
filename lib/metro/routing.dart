@@ -33,17 +33,15 @@ int calculateFare(int stationCount, Passenger passenger) {
   final band = stationCount <= 9
       ? 0
       : stationCount <= 16
-      ? 1
-      : stationCount <= 23
-      ? 2
-      : 3;
+          ? 1
+          : stationCount <= 23
+              ? 2
+              : 3;
 
   const regular = [10, 12, 15, 20];
   const senior = [5, 6, 8, 10];
 
-  return passenger == Passenger.senior
-      ? senior[band]
-      : regular[band];
+  return passenger == Passenger.senior ? senior[band] : regular[band];
 }
 
 class JourneyLeg {
@@ -85,8 +83,7 @@ class Journey {
 
   // Explicit app convention: fare count includes both endpoints.
   // Confirm this convention before using the app for actual ticket advice.
-  int get fare =>
-      stops == 0 ? 0 : calculateFare(stationCount, passenger);
+  int get fare => stops == 0 ? 0 : calculateFare(stationCount, passenger);
 
   // Estimate only: 2.5 minutes per stop plus 5 minutes per train change.
   // Does not include initial waiting time or live delays.
@@ -158,7 +155,7 @@ class RoutePlanner {
 
     while (open.isNotEmpty) {
       final currentKey = open.reduce(
-            (a, b) => costs[a]!.compareTo(costs[b]!) <= 0 ? a : b,
+        (a, b) => costs[a]!.compareTo(costs[b]!) <= 0 ? a : b,
       );
 
       open.remove(currentKey);
@@ -176,8 +173,8 @@ class RoutePlanner {
         final next = _State(edge.to, edge.service);
         if (settled.contains(next.key)) continue;
 
-        final changing = current.service.isNotEmpty &&
-            current.service != edge.service;
+        final changing =
+            current.service.isNotEmpty && current.service != edge.service;
 
         final candidate = _Cost(
           currentCost.stops + 1,
