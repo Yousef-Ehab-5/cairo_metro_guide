@@ -12,8 +12,34 @@ class JourneyScreen extends StatelessWidget {
     required this.journey,
   });
 
-  Widget _stat(String label, String value) {
-    return Chip(label: Text('$label: $value'));
+  static const Color _blue = Color(0xFF175CD3);
+  static const Color _red = Color(0xFFB3261E);
+  static const Color _green = Color(0xFF13795B);
+
+  Widget _stat({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Chip(
+      avatar: Icon(
+        icon,
+        size: 20,
+        color: color,
+      ),
+      label: Text('$label: $value'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 6,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: color.withAlpha(60),
+        ),
+      ),
+    );
   }
 
   @override
@@ -34,67 +60,110 @@ class JourneyScreen extends StatelessWidget {
                   children: [
                     Text(
                       '${metroNetwork.name(journey.start)} → '
-                      '${metroNetwork.name(journey.destination)}',
+                          '${metroNetwork.name(journey.destination)}',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
+
+                    // Journey information with icons.
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
                         _stat(
-                          'Stations incl. endpoints',
-                          '${journey.stationCount}',
+                          icon: Icons.train_outlined,
+                          label: 'Stations incl. endpoints',
+                          value: '${journey.stationCount}',
+                          color: _blue,
                         ),
-                        _stat('Stops traveled', '${journey.stops}'),
-                        _stat('Train changes', '${journey.changes}'),
-                        _stat('Fare', 'EGP ${journey.fare}'),
                         _stat(
-                          'Estimated time',
-                          '${journey.estimatedMinutes} min',
+                          icon: Icons.route_outlined,
+                          label: 'Stops traveled',
+                          value: '${journey.stops}',
+                          color: _blue,
                         ),
-                        _stat('Passenger', journey.passenger.label),
+                        _stat(
+                          icon: Icons.swap_horiz,
+                          label: 'Train changes',
+                          value: '${journey.changes}',
+                          color: _red,
+                        ),
+                        _stat(
+                          icon: Icons.payments_outlined,
+                          label: 'Fare',
+                          value: 'EGP ${journey.fare}',
+                          color: _green,
+                        ),
+                        _stat(
+                          icon: Icons.schedule,
+                          label: 'Estimated time',
+                          value: formatMinutes(journey.estimatedMinutes),
+                          color: _blue,
+                        ),
+                        _stat(
+                          icon: Icons.person_outline,
+                          label: 'Passenger',
+                          value: journey.passenger.label,
+                          color: _green,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
+
                     if (journey.stops == 0)
                       const Card(
                         child: Padding(
                           padding: EdgeInsets.all(20),
                           child: Text(
                             'You selected the same station. '
-                            'No journey is needed.',
+                                'No journey is needed.',
                           ),
                         ),
                       ),
+
+                    // Journey legs and interchange instructions.
                     for (var index = 0;
-                        index < journey.legs.length;
-                        index++) ...[
+                    index < journey.legs.length;
+                    index++) ...[
                       if (index > 0)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            'Change trains at '
-                            '${metroNetwork.name(
-                              journey.legs[index].stationIds.first,
-                            )}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.swap_horiz,
+                                color: _red,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Change trains at '
+                                      '${metroNetwork.name(
+                                    journey.legs[index].stationIds.first,
+                                  )}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       _legCard(context, journey.legs[index], index),
                     ],
+
                     const SizedBox(height: 20),
-                    const Text(
-                      'Route preference: fewest stops, then fewest train '
-                      'changes.\n'
-                      'Time estimate: 2.5 minutes per stop + 5 minutes per '
-                      'change. Initial waiting time and live delays are '
-                      'excluded.\n'
-                      'Fares are indicative. Confirm before travel.',
-                      style: TextStyle(fontSize: 12),
+                    Text(
+                      'Route preference: ${journey.preference.description}\n'
+                          'Time estimate: 2.5 minutes per stop + 5 minutes per '
+                          'change. Initial waiting time and live delays are '
+                          'excluded.\n'
+                          'Fares are indicative. Confirm before travel.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        height: 1.5,
+                      ),
                     ),
                   ],
                 ),
@@ -107,32 +176,47 @@ class JourneyScreen extends StatelessWidget {
   }
 
   Widget _legCard(
-    BuildContext context,
-    JourneyLeg leg,
-    int index,
-  ) {
+      BuildContext context,
+      JourneyLeg leg,
+      int index,
+      ) {
+    final color = lineColor(leg.line);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '${index + 1}. Line ${leg.line}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: lineColor(leg.line),
-              ),
+            Row(
+              children: [
+                Icon(
+                  Icons.train_outlined,
+                  color: color,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${index + 1}. Line ${leg.line}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 6),
             Text(
               'Board toward ${metroNetwork.name(leg.direction)}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             Text(
               'Get off at ${metroNetwork.name(leg.stationIds.last)}'
-              ' • ${leg.stops} stops',
+                  ' • ${leg.stops} stops',
             ),
             const Divider(),
             for (var i = 0; i < leg.stationIds.length; i++)
@@ -143,7 +227,7 @@ class JourneyScreen extends StatelessWidget {
                   i == 0 || i == leg.stationIds.length - 1
                       ? Icons.radio_button_checked
                       : Icons.circle_outlined,
-                  color: lineColor(leg.line),
+                  color: color,
                 ),
                 title: Text(
                   metroNetwork.name(leg.stationIds[i]),
@@ -162,4 +246,19 @@ class JourneyScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+String formatMinutes(int totalMinutes) {
+  if (totalMinutes < 60) {
+    return '$totalMinutes min';
+  }
+
+  final hours = totalMinutes ~/ 60;
+  final minutes = totalMinutes % 60;
+
+  if (minutes == 0) {
+    return '$hours hr';
+  }
+
+  return '$hours hr $minutes min';
 }

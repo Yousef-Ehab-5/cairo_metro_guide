@@ -19,6 +19,31 @@ extension PassengerLabel on Passenger {
   }
 }
 
+enum RoutePreference {
+  fewestStops,
+  fewestChanges,
+}
+
+extension RoutePreferenceLabel on RoutePreference {
+  String get label {
+    switch (this) {
+      case RoutePreference.fewestStops:
+        return 'Fewest stops';
+      case RoutePreference.fewestChanges:
+        return 'Fewest interchanges';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case RoutePreference.fewestStops:
+        return 'Fewest stops, then fewest interchanges.';
+      case RoutePreference.fewestChanges:
+        return 'Fewest interchanges, then fewest stops.';
+    }
+  }
+}
+
 // Your supplied fare table, preserved exactly.
 // These values are not independently verified current fares.
 int calculateFare(int stationCount, Passenger passenger) {
@@ -33,10 +58,10 @@ int calculateFare(int stationCount, Passenger passenger) {
   final band = stationCount <= 9
       ? 0
       : stationCount <= 16
-          ? 1
-          : stationCount <= 23
-              ? 2
-              : 3;
+      ? 1
+      : stationCount <= 23
+      ? 2
+      : 3;
 
   const regular = [10, 12, 15, 20];
   const senior = [5, 6, 8, 10];
@@ -64,6 +89,7 @@ class Journey {
   final String start;
   final String destination;
   final Passenger passenger;
+  final RoutePreference preference;
   final List<String> stationIds;
   final List<JourneyLeg> legs;
 
@@ -71,6 +97,7 @@ class Journey {
     required this.start,
     required this.destination,
     required this.passenger,
+    this.preference = RoutePreference.fewestChanges,
     required this.stationIds,
     required this.legs,
   });
@@ -81,25 +108,60 @@ class Journey {
 
   int get changes => legs.isEmpty ? 0 : legs.length - 1;
 
-  // Explicit app convention: fare count includes both endpoints.
-  // Confirm this convention before using the app for actual ticket advice.
+  // App convention: fare count includes both endpoints.
   int get fare => stops == 0 ? 0 : calculateFare(stationCount, passenger);
 
-  // Estimate only: 2.5 minutes per stop plus 5 minutes per train change.
-  // Does not include initial waiting time or live delays.
+  // Estimate: 2.5 minutes per stop plus 5 minutes per interchange.
+  // Excludes initial waiting time and live delays.
   int get estimatedMinutes => (stops * 2.5 + changes * 5).ceil();
+
+  // Examples: "45 min", "1 hr", "1 hr 40 min".
+  String get estimatedTimeLabel {
+    final total = estimatedMinutes;
+
+    if (total < 60) {
+      return '$total min';
+    }
+
+    final hours = total ~/ 60;
+    final minutes = total % 60;
+
+    if (minutes == 0) {
+      return '$hours hr';
+    }
+
+    return '$hours hr $minutes min';
+  }
 }
 
 class _Cost implements Comparable<_Cost> {
   final int stops;
   final int changes;
+  final RoutePreference preference;
 
-  const _Cost(this.stops, this.changes);
+  const _Cost(this.stops, this.changes, this.preference);
 
   @override
   int compareTo(_Cost other) {
+    if (preference == RoutePreference.fewestChanges) {
+      // Prefer fewer interchanges, then fewer stops.
+      final byChanges = changes.compareTo(other.changes);
+
+      if (byChanges != 0) {
+        return byChanges;
+      }
+
+      return stops.compareTo(other.stops);
+    }
+
+    // Prefer fewer stops, then fewer interchanges.
     final byStops = stops.compareTo(other.stops);
-    return byStops != 0 ? byStops : changes.compareTo(other.changes);
+
+    if (byStops != 0) {
+      return byStops;
+    }
+
+    return changes.compareTo(other.changes);
   }
 }
 
@@ -128,6 +190,7 @@ class RoutePlanner {
     required String start,
     required String destination,
     required Passenger passenger,
+    RoutePreference preference = RoutePreference.fewestChanges,
   }) {
     if (!network.stations.containsKey(start) ||
         !network.stations.containsKey(destination)) {
@@ -139,14 +202,22 @@ class RoutePlanner {
         start: start,
         destination: destination,
         passenger: passenger,
+        preference: preference,
         stationIds: [start],
         legs: [],
       );
     }
 
     final initial = _State(start, '');
-    final states = <String, _State>{initial.key: initial};
-    final costs = <String, _Cost>{initial.key: const _Cost(0, 0)};
+
+    final states = <String, _State>{
+      initial.key: initial,
+    };
+
+    final costs = <String, _Cost>{
+      initial.key: _Cost(0, 0, preference),
+    };
+
     final previous = <String, _Previous>{};
     final open = <String>{initial.key};
     final settled = <String>{};
@@ -154,12 +225,16 @@ class RoutePlanner {
     String? destinationKey;
 
     while (open.isNotEmpty) {
+      // Choose the best available state using the selected preference.
       final currentKey = open.reduce(
-        (a, b) => costs[a]!.compareTo(costs[b]!) <= 0 ? a : b,
+            (a, b) => costs[a]!.compareTo(costs[b]!) <= 0 ? a : b,
       );
 
       open.remove(currentKey);
-      if (!settled.add(currentKey)) continue;
+
+      if (!settled.add(currentKey)) {
+        continue;
+      }
 
       final current = states[currentKey]!;
       final currentCost = costs[currentKey]!;
@@ -171,14 +246,20 @@ class RoutePlanner {
 
       for (final edge in network.graph[current.station]!) {
         final next = _State(edge.to, edge.service);
-        if (settled.contains(next.key)) continue;
 
+        if (settled.contains(next.key)) {
+          continue;
+        }
+
+        // Initial boarding is not an interchange.
+        // Switching between Line 3 services also counts as a change.
         final changing =
             current.service.isNotEmpty && current.service != edge.service;
 
         final candidate = _Cost(
           currentCost.stops + 1,
           currentCost.changes + (changing ? 1 : 0),
+          preference,
         );
 
         final old = costs[next.key];
@@ -196,6 +277,7 @@ class RoutePlanner {
       throw StateError('No route exists in the available network.');
     }
 
+    // Follow the saved steps backward from destination to start.
     final reversedEdges = <TrackEdge>[];
     var cursor = destinationKey;
 
@@ -209,6 +291,7 @@ class RoutePlanner {
     final routeIds = <String>[start];
     final legs = <JourneyLeg>[];
 
+    // Group consecutive edges into journey legs.
     for (final edge in edges) {
       routeIds.add(edge.to);
 
@@ -232,6 +315,7 @@ class RoutePlanner {
       start: start,
       destination: destination,
       passenger: passenger,
+      preference: preference,
       stationIds: routeIds,
       legs: legs,
     );

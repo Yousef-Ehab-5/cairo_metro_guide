@@ -25,6 +25,8 @@ class _MetroHomeState extends State<MetroHome> {
   String destination = 'ain_helwan';
   Passenger passenger = Passenger.regular;
 
+  RoutePreference routePreference = RoutePreference.fewestChanges;
+
   List<Map<String, dynamic>> history = [];
   bool loading = true;
 
@@ -32,6 +34,14 @@ class _MetroHomeState extends State<MetroHome> {
   void initState() {
     super.initState();
     _restore();
+  }
+
+  // Older saved data without a preference defaults to fewer interchanges.
+  RoutePreference _readPreference(Object? savedValue) {
+    return RoutePreference.values.firstWhere(
+      (value) => value.name == savedValue,
+      orElse: () => RoutePreference.fewestChanges,
+    );
   }
 
   Future<void> _restore() async {
@@ -56,6 +66,8 @@ class _MetroHomeState extends State<MetroHome> {
         (value) => value.name == data['passenger'],
         orElse: () => Passenger.regular,
       );
+
+      routePreference = _readPreference(data['routePreference']);
 
       final restoredHistory = <Map<String, dynamic>>[];
       final savedHistory = data['history'];
@@ -91,6 +103,7 @@ class _MetroHomeState extends State<MetroHome> {
         'start': start,
         'destination': destination,
         'passenger': passenger.name,
+        'routePreference': routePreference.name,
         'history': history,
       });
     } catch (error) {
@@ -135,13 +148,15 @@ class _MetroHomeState extends State<MetroHome> {
         start: start,
         destination: destination,
         passenger: passenger,
+        preference: routePreference,
       );
 
       setState(() {
         history.insert(0, {
-          'start': start,
-          'destination': destination,
-          'passenger': passenger.name,
+          'start': journey.start,
+          'destination': journey.destination,
+          'passenger': journey.passenger.name,
+          'routePreference': journey.preference.name,
           'fare': journey.fare,
           'minutes': journey.estimatedMinutes,
           'created': DateTime.now().toIso8601String(),
@@ -190,8 +205,11 @@ class _MetroHomeState extends State<MetroHome> {
         (value) => value.name == selected['passenger'],
         orElse: () => Passenger.regular,
       );
+
+      routePreference = _readPreference(selected['routePreference']);
     });
 
+    // Recalculate using the saved preference.
     await _findRoute();
   }
 
@@ -277,14 +295,17 @@ class _MetroHomeState extends State<MetroHome> {
                             onTap: () => _select(false),
                           ),
                           const SizedBox(height: 16),
+
+                          // Passenger category.
                           DropdownButtonFormField<Passenger>(
                             key: ValueKey(passenger),
                             initialValue: passenger,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Passenger category',
                             ),
                             items: Passenger.values.map((type) {
-                              return DropdownMenuItem(
+                              return DropdownMenuItem<Passenger>(
                                 value: type,
                                 child: Text(type.label),
                               );
@@ -297,6 +318,38 @@ class _MetroHomeState extends State<MetroHome> {
                             },
                           ),
                           const SizedBox(height: 16),
+
+                          // Route preference.
+                          DropdownButtonFormField<RoutePreference>(
+                            key: ValueKey(routePreference),
+                            initialValue: routePreference,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Route preference',
+                              prefixIcon: Icon(Icons.alt_route),
+                            ),
+                            items: RoutePreference.values.map((preference) {
+                              return DropdownMenuItem<RoutePreference>(
+                                value: preference,
+                                child: Text(preference.label),
+                              );
+                            }).toList(),
+                            onChanged: (value) async {
+                              if (value == null) return;
+
+                              setState(() => routePreference = value);
+                              await _save();
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            routePreference.description,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
                           FilledButton.icon(
                             onPressed: _findRoute,
                             icon: const Icon(Icons.route),
